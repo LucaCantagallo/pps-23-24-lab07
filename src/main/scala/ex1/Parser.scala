@@ -14,7 +14,8 @@ abstract class Parser[T]:
     (seq forall parse) & end // note &, not &&
 
 object Parsers:
-  val todo = ??? // put the extensions here..
+  extension (s: String) def charParser() = BasicParser(s.toSet)
+
 class BasicParser(chars: Set[Char]) extends Parser[Char]:
   override def parse(t: Char): Boolean = chars.contains(t)
   override def end: Boolean = true
@@ -31,11 +32,22 @@ class NonEmptyParser(chars: Set[Char])
     with NonEmpty[Char]
 
 trait NotTwoConsecutive[T] extends Parser[T]:
-  val todo = ???
+
+  private[this] var lastEl: Option[T] = None
+  private[this] var wrong = false
+  abstract override def parse(t: T): Boolean =
+    if lastEl.contains(t) then wrong = true
+    lastEl = Some(t)
+    super.parse(t)
+   // who is super??
+
+  abstract override def end: Boolean = !wrong && super.end
+
 // ???
 
 class NotTwoConsecutiveParser(chars: Set[Char])
-    extends BasicParser(chars) // with ????
+    extends BasicParser(chars)
+      with NotTwoConsecutive[Char]
 
 @main def checkParsers(): Unit =
   def parser = new BasicParser(Set('a', 'b', 'c'))
@@ -52,11 +64,12 @@ class NotTwoConsecutiveParser(chars: Set[Char])
 
   // NotTwoConsecutive[Char] -> BasicParser -> Parser[Char]
   def parserNTC = new NotTwoConsecutiveParser(Set('X', 'Y', 'Z'))
+  println("NotTwoConsecutiveParser")
   println(parserNTC.parseAll("XYZ".toList)) // true
   println(parserNTC.parseAll("XYYZ".toList)) // false
   println(parserNTC.parseAll("".toList)) // true
 
-  // note we do not need a class name here, we use the structural type
+ //  note we do not need a class name here, we use the structural type
   def parserNTCNE = new BasicParser(Set('X', 'Y', 'Z'))
     with NotTwoConsecutive[Char]
     with NonEmpty[Char]
@@ -64,7 +77,8 @@ class NotTwoConsecutiveParser(chars: Set[Char])
   println(parserNTCNE.parseAll("XYYZ".toList)) // false
   println(parserNTCNE.parseAll("".toList)) // false
 
-  def sparser: Parser[Char] = ??? // "abc".charParser()
+  import Parsers.*
+  def sparser: Parser[Char] = "abc".charParser()
   println(sparser.parseAll("aabc".toList)) // true
   println(sparser.parseAll("aabcdc".toList)) // false
   println(sparser.parseAll("".toList)) // true
